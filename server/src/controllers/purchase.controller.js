@@ -3,6 +3,42 @@ import { Product } from '../models/product.model.js';
 import { Customer } from '../models/customer.model.js';
 import { sequelize } from '../config/database.js';
 
+export const getAllPurchases = async (req, res) => {
+  try {
+    const purchases = await Purchase.findAll({
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price', 'description']
+      }],
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(purchases);
+  } catch (error) {
+    console.error('Erro ao listar compras:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getPurchaseById = async (req, res) => {
+  try {
+    const purchase = await Purchase.findByPk(req.params.id, {
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price', 'description']
+      }]
+    });
+    
+    if (!purchase) {
+      return res.status(404).json({ message: 'Compra não encontrada' });
+    }
+    
+    res.json(purchase);
+  } catch (error) {
+    console.error('Erro ao buscar compra:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const createPurchase = async (req, res) => {
   const t = await sequelize.transaction();
   
@@ -37,12 +73,10 @@ export const createPurchase = async (req, res) => {
 
     // Buscar a compra completa com as relações
     const fullPurchase = await Purchase.findByPk(purchase.id, {
-      include: [
-        {
-          model: Product,
-          attributes: ['id', 'name', 'price', 'description']
-        }
-      ],
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price', 'description']
+      }],
       transaction: t
     });
 
@@ -52,6 +86,69 @@ export const createPurchase = async (req, res) => {
     await t.rollback();
     console.error('Erro ao criar compra:', error);
     res.status(400).json({ message: error.message });
+  }
+};
+
+export const updatePurchase = async (req, res) => {
+  const t = await sequelize.transaction();
+  
+  try {
+    const { quantity } = req.body;
+    const purchase = await Purchase.findByPk(req.params.id, {
+      include: [{
+        model: Product,
+        attributes: ['price']
+      }],
+      transaction: t
+    });
+
+    if (!purchase) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Compra não encontrada' });
+    }
+
+    // Atualizar a quantidade e recalcular o preço total
+    const updatedPurchase = await purchase.update({
+      quantity,
+      totalPrice: purchase.Product.price * quantity
+    }, { transaction: t });
+
+    // Buscar a compra atualizada com todas as relações
+    const fullPurchase = await Purchase.findByPk(updatedPurchase.id, {
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price', 'description']
+      }],
+      transaction: t
+    });
+
+    await t.commit();
+    res.json(fullPurchase);
+  } catch (error) {
+    await t.rollback();
+    console.error('Erro ao atualizar compra:', error);
+    res.status(400).json({ message: error.message });
+  }
+};
+
+export const deletePurchase = async (req, res) => {
+  const t = await sequelize.transaction();
+  
+  try {
+    const purchase = await Purchase.findByPk(req.params.id, { transaction: t });
+    
+    if (!purchase) {
+      await t.rollback();
+      return res.status(404).json({ message: 'Compra não encontrada' });
+    }
+
+    await purchase.destroy({ transaction: t });
+    await t.commit();
+    res.status(204).send();
+  } catch (error) {
+    await t.rollback();
+    console.error('Erro ao deletar compra:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 
