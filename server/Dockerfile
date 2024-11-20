@@ -1,17 +1,19 @@
-FROM node:20-alpine
+FROM node:18-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
+
+# Instalar todas as dependências, incluindo as de desenvolvimento
 RUN npm install
 
 COPY . .
 
 EXPOSE 3000
 
-# Add wait-for script to check for PostgreSQL
+# Adicionar script de espera para o PostgreSQL
 ADD https://raw.githubusercontent.com/eficode/wait-for/master/wait-for /wait-for
 RUN chmod +x /wait-for
 
-# Wait for PostgreSQL and start the application
-CMD ["/bin/sh", "-c", "/wait-for ${POSTGRES_HOST}:${POSTGRES_PORT} -- node src/index.js"]
+# Comando para iniciar a aplicação
+CMD ["/bin/sh", "-c", "/wait-for ${POSTGRES_HOST}:${POSTGRES_PORT} -- npm run dev"]
