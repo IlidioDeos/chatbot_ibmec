@@ -1,0 +1,13 @@
+{
+  "name": "ecommerce-system",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "server": "npm run dev --prefix server",
+    "start": "concurrently \"npm run dev\" \"npm run server\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
