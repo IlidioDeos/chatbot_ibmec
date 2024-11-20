@@ -1,12 +1,13 @@
 import express from 'express';
 import {
-  createPurchase,
-  getCustomerPurchases,
-  getSalesReport,
   getAllPurchases,
   getPurchaseById,
+  createPurchase,
   updatePurchase,
   deletePurchase,
+  getPurchaseReport,
+  getCustomerPurchases,
+  getSalesReport
 } from '../controllers/purchase.controller.js';
 
 const router = express.Router();
@@ -20,7 +21,6 @@ const router = express.Router();
  *       required:
  *         - productId
  *         - customerId
- *         - quantity
  *       properties:
  *         id:
  *           type: string
@@ -32,9 +32,11 @@ const router = express.Router();
  *           description: ID do produto comprado
  *         customerId:
  *           type: string
- *           description: Email do cliente que realizou a compra
+ *           description: Email do cliente que fez a compra
  *         quantity:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
  *           description: Quantidade comprada
  *         totalPrice:
  *           type: number
@@ -54,15 +56,87 @@ const router = express.Router();
  *   get:
  *     summary: Lista todas as compras
  *     tags: [Compras]
+ *     parameters:
+ *       - in: query
+ *         name: customerId
+ *         schema:
+ *           type: string
+ *         description: Filtrar por email do cliente
  *     responses:
  *       200:
- *         description: Lista de todas as compras
+ *         description: Lista de compras
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Purchase'
+ */
+router.get('/', getAllPurchases);
+
+/**
+ * @swagger
+ * /purchases/report:
+ *   get:
+ *     summary: Gera relatório de vendas
+ *     tags: [Compras]
+ *     responses:
+ *       200:
+ *         description: Relatório de vendas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total_revenue:
+ *                       type: number
+ *                     total_purchases:
+ *                       type: integer
+ *                     average_purchase:
+ *                       type: number
+ *                 daily_stats:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 product_stats:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ */
+router.get('/report', getPurchaseReport);
+
+/**
+ * @swagger
+ * /purchases/{id}:
+ *   get:
+ *     summary: Busca uma compra pelo ID
+ *     tags: [Compras]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID da compra
+ *     responses:
+ *       200:
+ *         description: Detalhes da compra
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Purchase'
+ *       404:
+ *         description: Compra não encontrada
+ */
+router.get('/:id', getPurchaseById);
+
+/**
+ * @swagger
+ * /purchases:
  *   post:
  *     summary: Cria uma nova compra
  *     tags: [Compras]
@@ -75,49 +149,29 @@ const router = express.Router();
  *             required:
  *               - productId
  *               - customerId
- *               - quantity
  *             properties:
  *               productId:
  *                 type: string
+ *                 format: uuid
  *               customerId:
  *                 type: string
  *               quantity:
  *                 type: integer
+ *                 minimum: 1
+ *                 default: 1
  *     responses:
  *       201:
  *         description: Compra criada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Purchase'
+ *       400:
+ *         description: Dados inválidos
  */
-router.get('/', getAllPurchases);
 router.post('/', createPurchase);
 
 /**
  * @swagger
  * /purchases/{id}:
- *   get:
- *     summary: Obtém uma compra específica pelo ID
- *     tags: [Compras]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da compra
- *     responses:
- *       200:
- *         description: Detalhes da compra
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Purchase'
- *       404:
- *         description: Compra não encontrada
  *   put:
- *     summary: Atualiza uma compra existente
+ *     summary: Atualiza uma compra
  *     tags: [Compras]
  *     parameters:
  *       - in: path
@@ -125,20 +179,24 @@ router.post('/', createPurchase);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               quantity:
- *                 type: integer
+ *             $ref: '#/components/schemas/Purchase'
  *     responses:
  *       200:
- *         description: Compra atualizada com sucesso
+ *         description: Compra atualizada
  *       404:
  *         description: Compra não encontrada
+ */
+router.put('/:id', updatePurchase);
+
+/**
+ * @swagger
+ * /purchases/{id}:
  *   delete:
  *     summary: Remove uma compra
  *     tags: [Compras]
@@ -148,14 +206,13 @@ router.post('/', createPurchase);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     responses:
  *       204:
- *         description: Compra removida com sucesso
+ *         description: Compra removida
  *       404:
  *         description: Compra não encontrada
  */
-router.get('/:id', getPurchaseById);
-router.put('/:id', updatePurchase);
 router.delete('/:id', deletePurchase);
 
 /**
@@ -228,6 +285,6 @@ router.get('/customer/:customerId', getCustomerPurchases);
  *                 totalRevenue:
  *                   type: number
  */
-router.get('/report', getSalesReport);
+router.get('/sales-report', getSalesReport);
 
 export default router;

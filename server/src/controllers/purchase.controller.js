@@ -2,6 +2,7 @@ import { Purchase } from '../models/purchase.model.js';
 import { Product } from '../models/product.model.js';
 import { Customer } from '../models/customer.model.js';
 import { sequelize } from '../config/database.js';
+import { Op } from 'sequelize';
 
 export const getAllPurchases = async (req, res) => {
   try {
@@ -63,12 +64,30 @@ export const createPurchase = async (req, res) => {
       return res.status(404).json({ message: 'Cliente não encontrado' });
     }
 
+    // Calcular o preço total da compra
+    const totalPrice = product.price * quantity;
+
+    // Verificar se o cliente tem saldo suficiente
+    if (customer.balance < totalPrice) {
+      await t.rollback();
+      return res.status(400).json({ 
+        message: 'Saldo insuficiente',
+        required: totalPrice,
+        available: customer.balance
+      });
+    }
+
     // Criar a compra
     const purchase = await Purchase.create({
       ProductId: productId,
       CustomerId: customer.id,
       quantity,
-      totalPrice: product.price * quantity,
+      totalPrice,
+    }, { transaction: t });
+
+    // Atualizar o saldo do cliente
+    await customer.update({
+      balance: sequelize.literal(`balance - ${totalPrice}`)
     }, { transaction: t });
 
     // Buscar a compra completa com as relações
@@ -81,7 +100,10 @@ export const createPurchase = async (req, res) => {
     });
 
     await t.commit();
-    res.status(201).json(fullPurchase);
+    res.status(201).json({
+      ...fullPurchase.toJSON(),
+      newBalance: customer.balance - totalPrice
+    });
   } catch (error) {
     await t.rollback();
     console.error('Erro ao criar compra:', error);
@@ -219,6 +241,63 @@ export const getSalesReport = async (req, res) => {
       averageTicket: Number(averageTicket.getDataValue('average_ticket')),
       totalPurchases: Number(totals.getDataValue('total_purchases')),
       totalRevenue: Number(totals.getDataValue('total_revenue')),
+    });
+  } catch (error) {
+    console.error('Erro ao gerar relatório:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const getPurchaseReport = async (req, res) => {
+  try {
+    const purchases = await Purchase.findAll({
+      include: [{
+        model: Product,
+        attributes: ['id', 'name', 'price']
+      }],
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('Purchase.id')), 'total_purchases'],
+        [sequelize.fn('SUM', sequelize.col('Purchase.totalPrice')), 'total_revenue'],
+        [sequelize.fn('AVG', sequelize.col('Purchase.totalPrice')), 'average_purchase'],
+        [sequelize.fn('date_trunc', 'day', sequelize.col('Purchase.createdAt')), 'date'],
+      ],
+      group: [
+        sequelize.fn('date_trunc', 'day', sequelize.col('Purchase.createdAt')),
+        'Product.id', 'Product.name', 'Product.price'
+      ],
+      order: [[sequelize.fn('date_trunc', 'day', sequelize.col('Purchase.createdAt')), 'DESC']],
+      raw: true,
+      nest: true
+    });
+
+    // Calcular totais gerais
+    const totalRevenue = purchases.reduce((sum, p) => sum + Number(p.total_revenue), 0);
+    const totalPurchases = purchases.reduce((sum, p) => sum + Number(p.total_purchases), 0);
+    const averagePurchase = totalPurchases > 0 ? totalRevenue / totalPurchases : 0;
+
+    // Agrupar por produto
+    const productStats = purchases.reduce((acc, p) => {
+      const productId = p.Product.id;
+      if (!acc[productId]) {
+        acc[productId] = {
+          product: p.Product,
+          total_revenue: 0,
+          total_purchases: 0
+        };
+      }
+      acc[productId].total_revenue += Number(p.total_revenue);
+      acc[productId].total_purchases += Number(p.total_purchases);
+      return acc;
+    }, {});
+
+    res.json({
+      summary: {
+        total_revenue: totalRevenue,
+        total_purchases: totalPurchases,
+        average_purchase: averagePurchase
+      },
+      daily_stats: purchases,
+      product_stats: Object.values(productStats)
     });
   } catch (error) {
     console.error('Erro ao gerar relatório:', error);

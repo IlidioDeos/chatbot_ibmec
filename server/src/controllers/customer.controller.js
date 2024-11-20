@@ -55,3 +55,24 @@ export const deleteCustomer = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getCustomerBalance = async (req, res) => {
+  try {
+    const customer = await Customer.findOne({
+      where: { email: req.params.email },
+      attributes: ['balance', 'name']
+    });
+
+    if (!customer) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
+    }
+
+    res.json({
+      balance: customer.balance,
+      name: customer.name
+    });
+  } catch (error) {
+    console.error('Erro ao consultar saldo:', error);
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -5,6 +5,7 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  getCustomerBalance,
 } from '../controllers/customer.controller.js';
 
 const router = express.Router();
@@ -34,6 +35,10 @@ const router = express.Router();
  *         region:
  *           type: string
  *           description: Região do cliente
+ *         balance:
+ *           type: number
+ *           format: float
+ *           description: Saldo disponível do cliente
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -165,5 +170,35 @@ router.post('/', createCustomer);
 router.get('/:id', getCustomerById);
 router.put('/:id', updateCustomer);
 router.delete('/:id', deleteCustomer);
+
+/**
+ * @swagger
+ * /customers/{email}/balance:
+ *   get:
+ *     summary: Consulta o saldo de um cliente
+ *     tags: [Clientes]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Email do cliente
+ *     responses:
+ *       200:
+ *         description: Saldo do cliente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 balance:
+ *                   type: number
+ *                   format: float
+ *                   description: Saldo atual do cliente
+ *       404:
+ *         description: Cliente não encontrado
+ */
+router.get('/:email/balance', getCustomerBalance);
 
 export default router;

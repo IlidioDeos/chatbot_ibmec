@@ -31,11 +31,13 @@ export const seedInitialData = async () => {
         email: 'admin@example.com',
         name: 'Administrador',
         region: 'Brasil',
+        balance: 0, // Admin não precisa de saldo
       },
       {
         email: 'cliente@example.com',
         name: 'Cliente Teste',
         region: 'Brasil',
+        balance: 10000.00, // Saldo inicial de 10000
       },
     ]);
 
