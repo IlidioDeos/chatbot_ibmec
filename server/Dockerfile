@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Instalar nodemon globalmente
+RUN npm install -g nodemon
+
 COPY package*.json ./
 
 # Instalar todas as dependências, incluindo as de desenvolvimento

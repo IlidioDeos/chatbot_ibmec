@@ -2,6 +2,9 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+# Instalar vite globalmente
+RUN npm install -g vite
+
 COPY package*.json ./
 
 # Instalar todas as dependências, incluindo as de desenvolvimento
